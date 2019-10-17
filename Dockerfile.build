@@ -1,3 +1,4 @@
 FROM centos:8
 
-RUN yum update -y -q
+RUN yum update -y -q \
+  && yum install -y -q git
