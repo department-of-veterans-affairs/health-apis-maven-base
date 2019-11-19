@@ -4,8 +4,6 @@ set -euo pipefail
 RELEASE=${RELEASE:-false}
 REPOSITORY=vasdvp/health-apis-maven
 
-docker image ls
-
 do_build() {
   version=$1
   case "$version" in
