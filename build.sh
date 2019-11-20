@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+BASEDIR=$(dirname $0)
 RELEASE=${RELEASE:-false}
 REPOSITORY=vasdvp/health-apis-maven
+VERSION=${VERSION:-$(cat $BASEDIR/VERSION)}
 
 do_build() {
-  version=$1
-  case "$version" in
-    8) tags=(piv-87-3.5-jdk-8 piv-87-latest) ;;
-    12) tags=(piv-87-3.6-jdk-12) ;;
-    *) echo "Unknown version: $version. Supported versions are 8 and 12." && exit 1 ;;
+  local java_version=$1
+  case "$java_version" in
+    8) tags=(3.5-jdk-8 latest) ;;
+    12) tags=(3.6-jdk-12) ;;
+    *) echo "Unknown Java version: $java_version. Supported versions are 8 and 12." && exit 1 ;;
   esac
-  docker build -f Dockerfile$version $(sed "s#\([^ ]\+\)#-t $REPOSITORY:\1#g" <<< ${tags[@]}) .
+  docker build -f $BASEDIR/Dockerfile$java_version $(sed "s#\([^ ]\+\)#-t $REPOSITORY:\1-$VERSION#g" <<< ${tags[@]}) $BASEDIR
   if [ $RELEASE == true ]; then
     docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
     for tag in "${tags[@]}"; do
