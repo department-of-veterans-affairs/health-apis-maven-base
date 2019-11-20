@@ -52,7 +52,8 @@ RUN chmod 666 /usr/java/openjdk-12/lib/security/cacerts
 #
 COPY install-jdk-certs.sh /tmp/install-jdk-certs.sh
 COPY certs/java/2a0f55789cb15a14.crt /tmp/2a0f55789cb15a14.crt
-RUN /tmp/install-jdk-certs.sh \
+RUN chmod 777 /tmp/install-jdk-certs.sh \
+    && /tmp/install-jdk-certs.sh \
     && rm -rf /tmp/install-jdk-certs.sh /tmp/2a0f55789cb15a14.crt
 
 #
