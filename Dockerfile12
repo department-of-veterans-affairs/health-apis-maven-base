@@ -1,0 +1,63 @@
+FROM maven:3.6-jdk-12
+
+# If we don't create these directories before the google-chrome-stable build, we receive
+# scriplet failures with exit code 2. If these directories exist, we don't get those failures.
+RUN mkdir -p /usr/share/man/man1 \
+    && mkdir -p /usr/share/man/man8 \
+    && mkdir -p /usr/share/info
+
+# The following packages were removed in the upgrade to Java 12 (already installed) and can be
+# added back as necessary: less, gawk, coreutils
+RUN yum update -y -q \
+    && yum install vim -y -q \
+    && yum install jq -y -q \
+    && yum install unzip -y -q \
+    && yum install initscripts -y -q
+
+# Get updated version of git
+    RUN yum update -y -q \
+    && yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y -q \
+    && yum install https://rhel7.iuscommunity.org/ius-release.rpm -y -q \
+    && yum install git2u -y -q
+
+RUN curl -sL https://rpm.nodesource.com/setup_8.x | bash -
+RUN yum install -y -q nodejs
+RUN yum update -y -q \
+    && yum-config-manager -q --enable ol7_optional_latest\
+    && yum -y -q install xorg-x11-server-Xvfb \
+    && rm -rf /var/cache/yum/*
+
+RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE` \
+    && mkdir -p /opt/chromedriver-$CHROMEDRIVER_VERSION \
+    && curl -sS -o /tmp/chromedriver_linux64.zip http://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip \
+    && unzip -qq /tmp/chromedriver_linux64.zip -d /opt/chromedriver-$CHROMEDRIVER_VERSION \
+    && rm /tmp/chromedriver_linux64.zip \
+    && chmod +x /opt/chromedriver-$CHROMEDRIVER_VERSION/chromedriver \
+    && ln -fs /opt/chromedriver-$CHROMEDRIVER_VERSION/chromedriver /usr/local/bin/chromedriver
+
+ADD https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm /root/google-chrome-stable_current_x86_64.rpm
+
+RUN yum update -y -q \
+    && yum install /root/google-chrome-stable_current_x86_64.rpm -y -q
+
+
+#
+# Jenkins runs this container as 'jenkins' or other users. These users often need to add
+# additional certs to the JDK. We will open access to cacerts to allow easy modification.
+#
+RUN chmod 666 /usr/java/openjdk-12/lib/security/cacerts
+
+#
+# Support Freedomstream certs at the JDK level
+#
+COPY install-jdk-certs.sh /tmp/install-jdk-certs.sh
+COPY certs/java/2a0f55789cb15a14.crt /tmp/2a0f55789cb15a14.crt
+RUN chmod 777 /tmp/install-jdk-certs.sh \
+    && /tmp/install-jdk-certs.sh \
+    && rm -rf /tmp/install-jdk-certs.sh /tmp/2a0f55789cb15a14.crt
+
+#
+# Support VA certs at the system level
+#
+COPY certs/system/ /etc/pki/ca-trust/source/anchors/
+RUN update-ca-trust extract

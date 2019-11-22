@@ -1,0 +1,48 @@
+FROM maven:3.5.2-jdk-8
+
+RUN apt-get update -qqy
+RUN curl -sL https://deb.nodesource.com/setup_8.x | bash -
+RUN apt-get install -qqy nodejs npm
+RUN apt-get update -qqy \
+    && apt-get -qqy install xvfb \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE` \
+    && mkdir -p /opt/chromedriver-$CHROMEDRIVER_VERSION \
+    && curl -sS -o /tmp/chromedriver_linux64.zip http://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip \
+    && unzip -qq /tmp/chromedriver_linux64.zip -d /opt/chromedriver-$CHROMEDRIVER_VERSION \
+    && rm /tmp/chromedriver_linux64.zip \
+    && chmod +x /opt/chromedriver-$CHROMEDRIVER_VERSION/chromedriver \
+    && ln -fs /opt/chromedriver-$CHROMEDRIVER_VERSION/chromedriver /usr/local/bin/chromedriver
+
+ADD https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb /root/google-chrome-stable_current_amd64.deb
+RUN apt-get update -qqy \
+    && apt-get install -qqy /root/google-chrome-stable_current_amd64.deb
+
+RUN apt-get update -qqy \
+    && apt-get install less -qqy \
+    && apt-get install vim -qqy \
+    && apt-get install jq -qqy \
+    && apt-get install gawk -qqy \
+    && apt-get install coreutils -qqy
+
+#
+# Jenkins runs this container as 'jenkins' or other users. These users often need to add
+# additional certs to the JDK. We will open access to cacerts to allow easy modification.
+#
+RUN chmod 666 /etc/ssl/certs/java/cacerts
+
+#
+# Support Freedomstream certs at the JDK level
+#
+COPY install-jdk-certs.sh /tmp/install-jdk-certs.sh
+COPY certs/java/2a0f55789cb15a14.crt /tmp/2a0f55789cb15a14.crt
+RUN chmod 777 /tmp/install-jdk-certs.sh \
+    && /tmp/install-jdk-certs.sh \
+    && rm -rf /tmp/install-jdk-certs.sh /tmp/2a0f55789cb15a14.crt
+
+#
+# Support VA certs at the system level
+#
+COPY certs/system/ /etc/ssl/certs/
+RUN update-ca-certificates
