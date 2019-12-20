@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
+#
+# ------ HACK ------
+#
+# The certs have been removed from the maven base, this will break all new resulting builds.
+# To prevent this change from percolating, we are disabling builds of the base at this time.
+# Follow-up fix to come soon...
+exit 0
 
 BASEDIR=$(dirname $0)
 RELEASE=${RELEASE:-false}
