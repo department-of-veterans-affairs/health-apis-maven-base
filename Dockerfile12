@@ -41,23 +41,16 @@ RUN yum update -y -q \
     && yum install /root/google-chrome-stable_current_x86_64.rpm -y -q
 
 
+
 #
-# Jenkins runs this container as 'jenkins' or other users. These users often need to add
+# In the past, we've needed to install certificates in both the JDK keystore and the system
+# trust anchors.
+#
+# See version tag 1.0.1.
+#
+
+#
+# Jenkins runs this container as 'jenkins' or other users. These users sometimes need to add
 # additional certs to the JDK. We will open access to cacerts to allow easy modification.
 #
 RUN chmod 666 /usr/java/openjdk-12/lib/security/cacerts
-
-#
-# Support Freedomstream certs at the JDK level
-#
-COPY install-jdk-certs.sh /tmp/install-jdk-certs.sh
-COPY certs/java/2a0f55789cb15a14.crt /tmp/2a0f55789cb15a14.crt
-RUN chmod 777 /tmp/install-jdk-certs.sh \
-    && /tmp/install-jdk-certs.sh \
-    && rm -rf /tmp/install-jdk-certs.sh /tmp/2a0f55789cb15a14.crt
-
-#
-# Support VA certs at the system level
-#
-COPY certs/system/ /etc/pki/ca-trust/source/anchors/
-RUN update-ca-trust extract
