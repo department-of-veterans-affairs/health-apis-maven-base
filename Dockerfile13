@@ -1,4 +1,4 @@
-FROM maven:3.6-jdk-12
+FROM maven:3.6-jdk-13
 
 # If we don't create these directories before the google-chrome-stable build, we receive
 # scriplet failures with exit code 2. If these directories exist, we don't get those failures.
@@ -11,8 +11,6 @@ RUN yum update -y -q \
     && yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y -q \
     && yum install https://rhel7.iuscommunity.org/ius-release.rpm -y -q
 
-# The following packages were removed in the upgrade to Java 12 (already installed) and can be
-# added back as necessary: less, gawk, coreutils
 RUN yum update -y -q \
     && yum install vim -y -q \
     && yum install jq -y -q \
@@ -20,7 +18,7 @@ RUN yum update -y -q \
     && yum install initscripts -y -q \
     && yum install git2u -y -q
 
-RUN curl -sL https://rpm.nodesource.com/setup_8.x | bash -
+RUN curl -sL https://rpm.nodesource.com/setup_13.x | bash -
 RUN yum install -y -q nodejs
 RUN yum update -y -q \
     && yum-config-manager -q --enable ol7_optional_latest\
@@ -41,14 +39,7 @@ RUN yum update -y -q \
     && yum install /root/google-chrome-stable_current_x86_64.rpm -y -q
 
 #
-# In the past, we've needed to install certificates in both the JDK keystore and the system
-# trust anchors.
-#
-# See version tag 1.0.1.
-#
-
-#
 # Jenkins runs this container as 'jenkins' or other users. These users sometimes need to add
 # additional certs to the JDK. We will open access to cacerts to allow easy modification.
 #
-RUN chmod 666 /usr/java/openjdk-12/lib/security/cacerts
+RUN chmod 666 /usr/java/openjdk-13/lib/security/cacerts
