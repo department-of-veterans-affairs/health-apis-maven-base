@@ -1,30 +1,49 @@
 FROM maven:3.6-jdk-13
 
+#
 # If we don't create these directories before the google-chrome-stable build, we receive
 # scriplet failures with exit code 2. If these directories exist, we don't get those failures.
+#
 RUN mkdir -p /usr/share/man/man1 \
     && mkdir -p /usr/share/man/man8 \
     && mkdir -p /usr/share/info
 
-# Add additional repositories
-RUN yum update -y -q \
-    && yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm -y -q \
-    && yum install https://rhel7.iuscommunity.org/ius-release.rpm -y -q
+#
+# Freshen up packages
+#
+RUN yum update -y -q
 
-RUN yum update -y -q \
-    && yum install vim -y -q \
-    && yum install jq -y -q \
-    && yum install unzip -y -q \
-    && yum install initscripts -y -q \
-    && yum install git2u -y -q
+#
+# The following packages were removed in the upgrade to Java 12 (already installed) and can be
+# added back as necessary: less, gawk, coreutils
+#
+RUN yum install -y -q vim \
+    && yum install -y -q unzip \
+    && yum install -y -q initscripts
 
+#
+# Git (update to a more recent version than what ships)
+#
+RUN yum install -y -q https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
+    && yum install -y -q https://rhel7.iuscommunity.org/ius-release.rpm \
+    && yum install -y -q git216
+
+#
+# NodeJS
+#
 RUN curl -sL https://rpm.nodesource.com/setup_13.x | bash -
 RUN yum install -y -q nodejs
-RUN yum update -y -q \
-    && yum-config-manager -q --enable ol7_optional_latest\
+
+#
+# X Virtual Frame Buffer (used for Selenium testing)
+#
+RUN yum-config-manager -q --enable ol7_optional_latest\
     && yum -y -q install xorg-x11-server-Xvfb \
     && rm -rf /var/cache/yum/*
 
+#
+# Google Chrome (used for Selenium testing)
+#
 RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE` \
     && mkdir -p /opt/chromedriver-$CHROMEDRIVER_VERSION \
     && curl -sS -o /tmp/chromedriver_linux64.zip http://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip \
@@ -32,14 +51,17 @@ RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RE
     && rm /tmp/chromedriver_linux64.zip \
     && chmod +x /opt/chromedriver-$CHROMEDRIVER_VERSION/chromedriver \
     && ln -fs /opt/chromedriver-$CHROMEDRIVER_VERSION/chromedriver /usr/local/bin/chromedriver
-
 ADD https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm /root/google-chrome-stable_current_x86_64.rpm
-
-RUN yum update -y -q \
-    && yum install /root/google-chrome-stable_current_x86_64.rpm -y -q
+RUN yum install -y -q /root/google-chrome-stable_current_x86_64.rpm
 
 #
-# Jenkins runs this container as 'jenkins' or other users. These users sometimes need to add
-# additional certs to the JDK. We will open access to cacerts to allow easy modification.
+# Additional utilities
 #
-RUN chmod 666 /usr/java/openjdk-13/lib/security/cacerts
+RUN yum install -y -q jq
+
+#
+# Install VA certs
+#
+COPY certs /tmp/certs
+COPY install-certs.sh /tmp/install-certs.sh
+RUN bash /tmp/install-certs.sh

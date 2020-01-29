@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
-BASEDIR=$(dirname $0)
+BASEDIR=$(readlink -f $(dirname $0))
+CERTS=$BASEDIR/certs
 RELEASE=${RELEASE:-false}
 REPOSITORY=vasdvp/health-apis-maven
 VERSION=${VERSION:-$(cat $BASEDIR/VERSION)}
 
-do_build() {
-  local java_version=$1
-  case "$java_version" in
-    8) local tags=(3.5-jdk-8 latest) ;;
+#
+# This builds a version of the base image.
+#
+buildMavenImage() {
+  local javaVersion=$1
+  # Tag format is {maven.version}-jdk-{java.major.version}
+  case "$javaVersion" in
     12) local tags=(3.6-jdk-12) ;;
     13) local tags=(3.6-jdk-13) ;;
-    *) echo "Unknown Java version: $java_version. Supported versions are 8, 12, 13." && exit 1 ;;
+    *) echo "Unknown Java version: $javaVersion. Supported versions: 12, 13" && exit 1 ;;
   esac
-  docker build -f $BASEDIR/Dockerfile$java_version $(sed "s#\([^ ]\+\)#-t $REPOSITORY:\1-$VERSION#g" <<< ${tags[@]}) $BASEDIR
+  docker build --pull -f $BASEDIR/Dockerfile$javaVersion $(sed "s#\([^ ]\+\)#-t $REPOSITORY:\1-$VERSION#g" <<< ${tags[@]}) $BASEDIR
   if [ $RELEASE == true ]; then
     docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
     for tag in "${tags[@]}"; do
@@ -24,10 +28,22 @@ do_build() {
   fi
 }
 
+pullVaCerts() {
+  if [ -d $CERTS ]; then rm -rf $CERTS; fi
+  mkdir $CERTS
+  local vaCertRepo=http://aia.pki.va.gov/PKI/AIA/VA/
+  local vaRootCert=VA-Internal-S2-RCA1-v1.cer
+  echo "Downloading $vaCertRepo/$vaRootCert"
+  local status=$(curl -sw %{http_code} $vaCertRepo/$vaRootCert -o $CERTS/$vaRootCert)
+  if [ "$status" != 200 ]; then echo "Failed to download VA certificates"; exit 1; fi
+}
+
+pullVaCerts
+
 if [ $# == 0 ]; then
-  do_build 8
-  do_build 12
-  do_build 13
+  buildMavenImage 12
+  buildMavenImage 13
 else
-  do_build $1
+  buildMavenImage $1
 fi
+
