@@ -1,6 +1,14 @@
 FROM maven:3.6-jdk-13
 
 #
+# Install VA certs
+#
+COPY certs /tmp/certs
+COPY install-certs.sh /tmp/install-certs.sh
+RUN bash /tmp/install-certs.sh
+
+
+#
 # If we don't create these directories before the google-chrome-stable build, we receive
 # scriplet failures with exit code 2. If these directories exist, we don't get those failures.
 #
@@ -59,9 +67,3 @@ RUN yum install -y -q /root/google-chrome-stable_current_x86_64.rpm
 #
 RUN yum install -y -q jq
 
-#
-# Install VA certs
-#
-COPY certs /tmp/certs
-COPY install-certs.sh /tmp/install-certs.sh
-RUN bash /tmp/install-certs.sh
